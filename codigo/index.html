@@ -1,189 +1,262 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
+
 <head>
-    <meta charset="UTF-8">
-    <title>Reporte Gerencial - TECSUR</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="datos_gantt.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap" rel="stylesheet">
-    <style>
-        body { background-color: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
-        
-        /* GANTT STYLES - EL ALMA */
-        .gantt-grid { 
-            display: grid; 
-            grid-template-columns: 380px repeat(11, 1fr); 
-            gap: 1px; 
-            background: #1e293b; 
-            border-radius: 20px; 
-            overflow: hidden;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-        .header-cell { background: #0f172a; padding: 16px; text-align: center; font-size: 11px; font-weight: 900; color: #94a3b8; border-bottom: 2px solid #1e293b; }
-        .name-cell { background: #0f172a; padding: 18px 20px; font-size: 12px; font-weight: 700; display: flex; align-items: center; border-bottom: 1px solid #1e293b; color: #e2e8f0; }
-        .week-cell { background: #020617; border-bottom: 1px solid #1e293b; position: relative; min-height: 65px; }
-        
-        .full-bar {
-            position: absolute; top: 18px; height: 30px; 
-            background: linear-gradient(90deg, #4f46e5 0%, #a855f7 100%);
-            border-radius: 30px; z-index: 10; display: flex; align-items: center; justify-content: center;
-            font-size: 11px; font-weight: 900; color: white; border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Implementación de Medición Inteligente AP 2026</title>
 
-        .chart-container { height: 350px; width: 100%; }
-    </style>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --line: rgba(255, 255, 255, 0.1);
+      --accent: #38bdf8;
+      --f1: #3b82f6; 
+      --f2: #10b981; 
+      --f3: #f59e0b;
+      --critical: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* HEADER & LAYOUT */
+    header {
+      padding: 1rem 2rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    h1 { margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--accent); letter-spacing: -0.025em; }
+
+    .main-container { padding: 1.5rem; max-width: 1800px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
+
+    /* KPI CARDS */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .kpi-card { background: var(--card); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--line); }
+    .kpi-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .kpi-value { font-size: 1.75rem; font-weight: 700; color: var(--text); }
+    .kpi-sub { font-size: 0.75rem; margin-top: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* FILTERS */
+    .filter-bar { background: var(--card2); padding: 1rem; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+    select { background: var(--bg); color: var(--text); border: 1px solid var(--line); padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; outline: none; }
+    
+    /* GANTT AREA */
+    .gantt-container { background: var(--card); border-radius: 12px; border: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; }
+    .gantt-scroll { overflow: auto; position: relative; max-height: 600px; }
+
+    /* Tabla interna del Gantt */
+    .gantt-table { display: flex; flex-direction: column; min-width: max-content; }
+    .gantt-header { display: flex; background: var(--card2); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--line); }
+    .gantt-row { display: flex; border-bottom: 1px solid var(--line); align-items: stretch; }
+    
+    .col-info { width: 350px; min-width: 350px; padding: 0.75rem 1rem; border-right: 1px solid var(--line); background: var(--card); position: sticky; left: 0; z-index: 5; }
+    .col-timeline { flex-grow: 1; display: flex; position: relative; }
+
+    .day-cell { width: 32px; min-width: 32px; border-right: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: var(--muted); }
+    
+    .bar-task { position: absolute; height: 28px; top: 8px; border-radius: 6px; display: flex; align-items: center; padding: 0 8px; cursor: pointer; transition: transform 0.2s; z-index: 2; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+    .bar-task:hover { transform: scaleY(1.1); filter: brightness(1.1); }
+    .bar-progress { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px 0 0 5px; background: rgba(255,255,255,0.25); pointer-events: none; }
+    .bar-label { position: relative; font-size: 0.7rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); z-index: 3; }
+
+    .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--critical); z-index: 4; pointer-events: none; }
+    
+    /* TOOLTIP */
+    #tooltip { position: fixed; background: #020617; border: 1px solid var(--accent); padding: 1rem; border-radius: 8px; z-index: 1000; pointer-events: none; display: none; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); font-size: 0.85rem; width: 280px; }
+  </style>
 </head>
-<body class="p-6 md:p-12">
 
-    <div class="max-w-[1750px] mx-auto space-y-10">
-        
-        <header class="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-800 pb-8">
-            <div class="space-y-3">
-                <div class="flex items-center gap-3">
-                    <div class="h-3 w-3 bg-indigo-500 rounded-full animate-pulse"></div>
-                    <span class="text-indigo-400 font-black tracking-[0.2em] text-xs uppercase">Tecsur S.A. - Control de Proyectos</span>
-                </div>
-                <h1 id="proyecto-titulo" class="text-4xl font-black text-white italic tracking-tighter max-w-5xl"></h1>
-                <div class="flex gap-8 text-xs font-bold uppercase tracking-widest text-slate-500">
-                    <div>Inicio: <span id="fecha-inicio" class="text-slate-200"></span></div>
-                    <div>Entrega: <span id="fecha-entrega" class="text-rose-500"></span></div>
-                </div>
-            </div>
-            <div class="text-right">
-                <span class="text-[10px] font-black text-slate-500 uppercase">Avance Real 24/02/2026</span>
-                <div id="global-perc" class="text-7xl font-black text-white leading-none">0%</div>
-            </div>
-        </header>
+<body>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="glass p-6 rounded-[2rem] border-l-8 border-indigo-600">
-                <span class="text-[10px] font-black text-slate-500 uppercase">Postes Totales (MT+BT)</span>
-                <div class="flex justify-between items-baseline mt-2">
-                    <span id="postes-total-perc" class="text-5xl font-black text-white">0%</span>
-                    <span id="postes-total-det" class="text-xs font-bold text-slate-400"></span>
-                </div>
-            </div>
-            <div class="glass p-6 rounded-[2rem] border-l-8 border-blue-500">
-                <span class="text-[10px] font-black text-slate-500 uppercase">Postes Media Tensión</span>
-                <div class="flex justify-between items-baseline mt-2">
-                    <span id="mt-perc" class="text-5xl font-black text-white">0%</span>
-                    <span id="mt-det" class="text-xs font-bold text-slate-400"></span>
-                </div>
-            </div>
-            <div class="glass p-6 rounded-[2rem] border-l-8 border-emerald-500">
-                <span class="text-[10px] font-black text-slate-500 uppercase">Postes Baja Tensión</span>
-                <div class="flex justify-between items-baseline mt-2">
-                    <span id="bt-perc" class="text-5xl font-black text-white">0%</span>
-                    <span id="bt-det" class="text-xs font-bold text-slate-400"></span>
-                </div>
-            </div>
-        </div>
+  <header>
+    <h1>Implementación Medición Inteligente 2026</h1>
+    <div id="todayLabel" style="font-size: 0.85rem; color: var(--muted);"></div>
+  </header>
 
-        <div class="space-y-4">
-            <h3 class="text-sm font-black text-indigo-400 uppercase tracking-[0.3em]">Cronograma de Ejecución Real</h3>
-            <div class="overflow-x-auto p-1 bg-slate-900 rounded-[2rem] border border-slate-800">
-                <div class="gantt-grid" id="gantt-board">
-                    <div class="header-cell">DESCRIPCIÓN DE ACTIVIDADES</div>
-                    <div class="header-cell">S1</div><div class="header-cell">S2</div><div class="header-cell">S3</div><div class="header-cell text-indigo-500 bg-indigo-500/10">S4</div>
-                    <div class="header-cell">S5</div><div class="header-cell">S6</div><div class="header-cell">S7</div><div class="header-cell">S8</div>
-                    <div class="header-cell">S9</div><div class="header-cell">S10</div><div class="header-cell">S11</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="glass p-8 rounded-[2rem] space-y-6">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Análisis de Cumplimiento (Curva S)</h3>
-                    <div class="flex gap-4 text-[10px] font-bold">
-                        <div class="flex items-center gap-1"><span class="h-2 w-2 bg-slate-600 rounded-full"></span> PROYECTADO</div>
-                        <div class="flex items-center gap-1"><span class="h-2 w-2 bg-indigo-500 rounded-full"></span> REAL</div>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="chartCurvaS"></canvas>
-                </div>
-            </div>
-
-            <div class="glass rounded-[2rem] overflow-hidden">
-                <div class="p-6 bg-slate-900/50 border-b border-slate-800">
-                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Resumen de Ejecución Semanal</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-[11px]">
-                        <thead class="bg-slate-950 text-slate-500 uppercase font-black">
-                            <tr>
-                                <th class="p-4">Actividad</th>
-                                <th class="p-4 text-center">S1</th><th class="p-4 text-center">S2</th><th class="p-4 text-center">S3</th><th class="p-4 text-center bg-indigo-500/10 text-white">S4</th>
-                                <th class="p-4 text-right">Total CZ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body" class="divide-y divide-slate-800"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+  <div class="main-container">
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Avance Real Total</div>
+        <div id="kpi-real" class="kpi-value">0%</div>
+        <div id="kpi-diff" class="kpi-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Actividades Terminadas</div>
+        <div id="kpi-done" class="kpi-value">0/0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Fase Actual</div>
+        <div id="kpi-phase" class="kpi-value">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Días para el Cierre</div>
+        <div id="kpi-days" class="kpi-value">0</div>
+      </div>
     </div>
 
-    <script>
-        window.onload = function() {
-            if (typeof dataProyecto !== 'undefined') {
-                const d = dataProyecto;
-                document.getElementById('proyecto-titulo').innerText = d.proyecto;
-                document.getElementById('fecha-inicio').innerText = d.inicio_obra;
-                document.getElementById('fecha-entrega').innerText = d.entrega_obra;
-                document.getElementById('global-perc').innerText = d.avance_global + "%";
-                
-                document.getElementById('postes-total-perc').innerText = d.postes_total.progreso + "%";
-                document.getElementById('postes-total-det').innerText = d.postes_total.detalle;
-                document.getElementById('mt-perc').innerText = d.postes_mt.progreso + "%";
-                document.getElementById('mt-det').innerText = d.postes_mt.detalle;
-                document.getElementById('bt-perc').innerText = d.postes_bt.progreso + "%";
-                document.getElementById('bt-det').innerText = d.postes_bt.detalle;
+    <div class="filter-bar">
+      <div style="font-size: 0.8rem; font-weight: 600; color: var(--accent);">FILTROS:</div>
+      <select id="filter-fase"><option value="">Todas las Fases</option></select>
+      <select id="filter-owner"><option value="">Todos los Owners</option></select>
+      <select id="filter-estado"><option value="">Todos los Estados</option></select>
+    </div>
 
-                // CHART CURVA S
-                const ctx = document.getElementById('chartCurvaS').getContext('2d');
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: d.curva_s.map(i => i.sem),
-                        datasets: [
-                            { label: 'Proyectado Acum.', data: d.curva_s.map(i => i.proy_ac), borderColor: '#334155', borderDash: [5,5], fill: false, tension: 0.4 },
-                            { label: 'Real Acumulado', data: d.curva_s.map(i => i.real_ac > 0 ? i.real_ac : null), borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4, borderWidth: 4, pointBackgroundColor: '#6366f1' }
-                        ]
-                    },
-                    options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#1e293b' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } }
-                });
+    <div class="gantt-container">
+      <div class="gantt-scroll" id="ganttScroll">
+        <div class="gantt-table" id="ganttBody"></div>
+      </div>
+    </div>
+  </div>
 
-                // GANTT BOARD
-                const board = document.getElementById('gantt-board');
-                const table = document.getElementById('table-body');
-                d.tareas.forEach(t => {
-                    const n = document.createElement('div'); n.className = 'name-cell'; n.innerText = t.name;
-                    board.appendChild(n);
-                    for (let s = 0; s < 11; s++) {
-                        const c = document.createElement('div'); c.className = 'week-cell';
-                        if (t.inicio !== -1 && s === t.inicio) {
-                            const num = (t.fin - t.inicio) + 1;
-                            const bar = document.createElement('div'); bar.className = 'full-bar';
-                            bar.style.width = `calc(${num * 100}% + ${num - 1}px - 14px)`;
-                            bar.innerText = t.total + "%";
-                            c.appendChild(bar);
-                        }
-                        board.appendChild(c);
-                    }
-                    // TABLE
-                    let semHTML = t.historial.map((v, i) => i < 4 ? `<td class="p-4 text-center ${v>0?'text-white font-bold':'text-slate-800'}">${v>0?v+'%':'-'}</td>` : '').join('');
-                    table.innerHTML += `<tr class="hover:bg-slate-800/40"><td class="p-4 font-bold text-slate-300 uppercase">${t.name}</td>${semHTML}<td class="p-4 text-right font-black text-indigo-400 text-sm">${t.total}%</td></tr>`;
-                });
-            }
-        };
-    </script>
+  <div id="tooltip"></div>
+
+  <script>
+    // DATOS DE LA TABLA (INYECTADOS)
+    const rawData = [
+      { id: "R1-F1-01", reporte: "R1 - OBRAS PROVISIONALES Y PRELIMINARES", fase: "Fase 1", owner: "TECSUR", inicio: "2026-01-31", fin: "2026-04-06", estado: "En progreso", avance: 0.83 },
+      { id: "R3-F3-02", reporte: "R2.1 - MONTAJE DE POSTES - MEDIA TENSIÓN", fase: "Fase 1", owner: "TECSUR", inicio: "2026-01-29", fin: "2026-03-30", estado: "En progreso", avance: 0.94 },
+      { id: "R4-F2-02", reporte: "R2.2- MONTAJE DE ARMADOS MT", fase: "Fase 1", owner: "TECSUR", inicio: "2026-02-09", fin: "2026-03-10", estado: "En progreso", avance: 0.58 },
+      { id: "R5-F2-03", reporte: "R2.3 - MONTAJE DE CONDUCTORES", fase: "Fase 1", owner: "TECSUR", inicio: "2026-02-18", fin: "2026-02-26", estado: "Terminado", avance: 1.00 },
+      { id: "R6-F2-04", reporte: "R2.4 - INSTALACION DE PUESTA A TIERRA", fase: "Fase 1", owner: "TECSUR", inicio: "2026-02-05", fin: "2026-03-14", estado: "En progreso", avance: 0.75 },
+      { id: "R7-F2-05", reporte: "R2.5 - TRABAJOS SUBTERRÁNEOS MT", fase: "Fase 1", owner: "TECSUR", inicio: "2026-01-16", fin: "2026-03-03", estado: "Terminado", avance: 1.00 },
+      { id: "R7-F2-06", reporte: "R3.1 - TRABAJOS SUBTERRANEOS BT", fase: "Fase 2", owner: "TECSUR", inicio: "2026-02-19", fin: "2026-03-19", estado: "No iniciado", avance: 0.00 },
+      { id: "R8-F3-07", reporte: "R3.2 - MONTAJE DE POSTES -BT", fase: "Fase 2", owner: "TECSUR", inicio: "2026-02-03", fin: "2026-03-22", estado: "En progreso", avance: 0.88 },
+      { id: "R9-F1-02", reporte: "R3.3  - MONTAJE DE ARMADOS BT", fase: "Fase 2", owner: "TECSUR", inicio: "2026-02-19", fin: "2026-03-22", estado: "En progreso", avance: 0.64 },
+      { id: "R10-F1-03", reporte: "R3.4  - MONTAJE DE CONDUCTORES BT", fase: "Fase 2", owner: "TECSUR", inicio: "2026-03-05", fin: "2026-03-24", estado: "No iniciado", avance: 0.00 },
+      { id: "R11-F3-03", reporte: "R3.5  - INSTALACION DE PUESTA A TIERRA BT", fase: "Fase 2", owner: "TECSUR", inicio: "2026-03-09", fin: "2026-03-24", estado: "En progreso", avance: 0.35 },
+      { id: "R11-F3-04", reporte: "R3.6  - INSTALACION DE EQUIPOS DE ALUMBRADO PUBLICO BT", fase: "Fase 2", owner: "TECSUR", inicio: "2026-03-10", fin: "2026-03-26", estado: "No iniciado", avance: 0.00 },
+      { id: "R13-F3-05", reporte: "R3.7  - INSTALACION DE EMPALMES Y CONECTORES BT", fase: "Fase 2", owner: "TECSUR", inicio: "2026-03-13", fin: "2026-03-26", estado: "No iniciado", avance: 0.00 },
+      { id: "R14-F3-06", reporte: "R3.8  - CONEXIÓN CAJA DE DISTRIBUCIÓN (LONCHERA)", fase: "Fase 2", owner: "TECSUR", inicio: "2026-03-20", fin: "2026-03-29", estado: "No iniciado", avance: 0.00 },
+      { id: "R15-F3-07", reporte: "R4  - PRUEBAS ELÉCTRICAS Y ENTREGA", fase: "Fase 2", owner: "TECSUR", inicio: "2026-04-08", fin: "2026-04-08", estado: "No iniciado", avance: 0.00 }
+    ];
+
+    const DAY_W = 32;
+    const TODAY = new Date("2026-03-04"); // Fecha de corte hoy
+
+    function init() {
+      populateFilters();
+      render();
+      document.querySelectorAll('select').forEach(s => s.addEventListener('change', render));
+      document.getElementById('todayLabel').innerText = "Hoy: " + TODAY.toLocaleDateString();
+    }
+
+    function populateFilters() {
+      const fFase = document.getElementById('filter-fase');
+      const fOwner = document.getElementById('filter-owner');
+      const fEstado = document.getElementById('filter-estado');
+
+      [...new Set(rawData.map(d => d.fase))].forEach(v => fFase.add(new Option(v, v)));
+      [...new Set(rawData.map(d => d.owner))].forEach(v => fOwner.add(new Option(v, v)));
+      [...new Set(rawData.map(d => d.estado))].forEach(v => fEstado.add(new Option(v, v)));
+    }
+
+    function render() {
+      const faseV = document.getElementById('filter-fase').value;
+      const ownerV = document.getElementById('filter-owner').value;
+      const estadoV = document.getElementById('filter-estado').value;
+
+      const filtered = rawData.filter(d => 
+        (!faseV || d.fase === faseV) &&
+        (!ownerV || d.owner === ownerV) &&
+        (!estadoV || d.estado === estadoV)
+      );
+
+      // Calcular KPIs
+      const totalAvance = filtered.reduce((acc, d) => acc + d.avance, 0) / (filtered.length || 1);
+      document.getElementById('kpi-real').innerText = `${(totalAvance * 100).toFixed(1)}%`;
+      document.getElementById('kpi-done').innerText = `${filtered.filter(d => d.estado === 'Terminado').length}/${filtered.length}`;
+      
+      const lastDate = new Date(Math.max(...filtered.map(d => new Date(d.fin))));
+      const diffDays = Math.ceil((lastDate - TODAY) / (1000 * 60 * 60 * 24));
+      document.getElementById('kpi-days').innerText = diffDays > 0 ? diffDays : "Plazo Vencido";
+
+      // Rango de fechas para el Gantt
+      const minDate = new Date(Math.min(...rawData.map(d => new Date(d.inicio))));
+      minDate.setDate(minDate.getDate() - 3);
+      const maxDate = new Date(Math.max(...rawData.map(d => new Date(d.fin))));
+      maxDate.setDate(maxDate.getDate() + 7);
+      const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
+
+      // Dibujar Gantt
+      const body = document.getElementById('ganttBody');
+      let html = `<div class="gantt-header"><div class="col-info">Actividad / Responsable</div><div class="col-timeline">`;
+      for(let i=0; i<totalDays; i++) {
+        let d = new Date(minDate); d.setDate(d.getDate()+i);
+        html += `<div class="day-cell">${d.getDate()}/${d.getMonth()+1}</div>`;
+      }
+      html += `</div></div>`;
+
+      filtered.forEach(task => {
+        const start = new Date(task.inicio);
+        const end = new Date(task.fin);
+        const left = Math.ceil((start - minDate)/(1000*60*60*24)) * DAY_W;
+        const width = (Math.ceil((end - start)/(1000*60*60*24)) + 1) * DAY_W;
+        const color = task.fase === "Fase 1" ? "var(--f1)" : task.fase === "Fase 2" ? "var(--f2)" : "var(--f3)";
+
+        html += `
+          <div class="gantt-row">
+            <div class="col-info">
+              <div style="font-size:0.8rem; font-weight:600">${task.reporte}</div>
+              <div style="font-size:0.7rem; color:var(--muted)">${task.id} | ${task.owner}</div>
+            </div>
+            <div class="col-timeline">
+              <div class="bar-task" style="left:${left}px; width:${width}px; background:${color}44; border:1px solid ${color}"
+                   onmouseenter="showTooltip(event, ${JSON.stringify(task)})" onmouseleave="hideTooltip()">
+                <div class="bar-progress" style="width:${task.avance*100}%; background:${color}"></div>
+                <div class="bar-label">${(task.avance*100).toFixed(0)}%</div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      // Línea de Hoy
+      const todayLeft = Math.ceil((TODAY - minDate)/(1000*60*60*24)) * DAY_W;
+      html += `<div class="today-line" style="left: ${350 + todayLeft}px"></div>`;
+
+      body.innerHTML = html;
+    }
+
+    const tt = document.getElementById('tooltip');
+    function showTooltip(e, task) {
+      tt.style.display = 'block';
+      tt.innerHTML = `
+        <div style="font-weight:700; color:var(--accent); margin-bottom:8px">${task.reporte}</div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Estado:</span> <b>${task.estado}</b></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Avance:</span> <b>${(task.avance*100).toFixed(0)}%</b></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px"><span>Inicio:</span> <span>${task.inicio}</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Fin:</span> <span>${task.fin}</span></div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--line); font-size:0.7rem; color:var(--muted)">Responsable: ${task.owner}</div>
+      `;
+      moveTooltip(e);
+    }
+    function hideTooltip() { tt.style.display = 'none'; }
+    function moveTooltip(e) {
+      tt.style.left = (e.clientX + 15) + 'px';
+      tt.style.top = (e.clientY + 15) + 'px';
+    }
+    window.onmousemove = (e) => { if(tt.style.display==='block') moveTooltip(e); };
+
+    init();
+  </script>
 </body>
 </html>
-
-
 
